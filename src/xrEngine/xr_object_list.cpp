@@ -27,7 +27,8 @@ BOOL debug_destroy = TRUE;
 CObjectList::CObjectList() :
 	m_owner_thread_id(GetCurrentThreadId())
 {
-	ZeroMemory(map_NETID, 0xffff * sizeof(CObject*));
+	//ZeroMemory(map_NETID, 0xffff * sizeof(CObject*));
+	map_NETID.clear();
 }
 
 CObjectList::~CObjectList()
@@ -36,6 +37,7 @@ CObjectList::~CObjectList()
 	R_ASSERT(objects_sleeping.empty());
 	R_ASSERT(destroy_queue.empty());
 	//. R_ASSERT ( map_NETID.empty() );
+	R_ASSERT2(map_NETID.empty(), "! ERROR: map_NETID is not empty");
 }
 
 CObject* CObjectList::FindObjectByName(shared_str name)
@@ -316,24 +318,56 @@ void CObjectList::Update(bool bForce)
 void CObjectList::net_Register(CObject* O)
 {
 	R_ASSERT(O);
-	R_ASSERT(O->ID() < 0xffff);
+	R_ASSERT(O->ID() < decltype(O->ID())(-1)); //R_ASSERT(O->ID() < 0xffff);
+	
+	ObjectsMap::iterator It = map_NETID.find(O->ID());
+	if (It->second == O)
+		Msg("~ WARNING: Object has already been registered in map_NETID, to register = %s (%d), registered = %s (%d)", *(O->cName()), O->ID(), *(It->second->cName()), It->second->ID());
+
+	//R_ASSERT2(It->second != O, make_string("! ERROR: Object has already been registered in map_NETID: to register = %s (%d), registered = %s (%d)", *(O->cName()), O->ID(), *(It->second->cName()), It->second->ID()));
 
 	map_NETID[O->ID()] = O;
 
+	//Msg("-------------------------------- Register: %s (%d)", *(O->cName()), O->ID());
 
 	//. map_NETID.insert(mk_pair(O->ID(),O));
-	//Msg ("-------------------------------- Register: %s",O->cName());
+	//Msg ("-------------------------------- Register: %s", *(O->cName()));
 }
 
 void CObjectList::net_Unregister(CObject* O)
 {
+	/*
 	//R_ASSERT (O->ID() < 0xffff);
 	if (O->ID() < 0xffff) //demo_spectator can have 0xffff
 		map_NETID[O->ID()] = NULL;
+	*/
+
+	R_ASSERT(O);
+	if (O->ID() < decltype(O->ID())(-1)) //demo_spectator can have max_id
+	{
+		ObjectsMap::iterator It = map_NETID.find(O->ID());
+		if (It != map_NETID.end())
+		{
+			if (It->second == O)
+			{
+				//Msg("-------------------------------- Unregister: %s (%d)", *(O->cName()), O->ID());
+				map_NETID.erase(It);
+			}
+			else
+			{
+				Msg("! ERROR: attempt to unregister another object with the same id, tried = %s (%d), registered = %s (%d)", *(O->cName()), O->ID(), *(It->second->cName()), It->second->ID());
+			}
+		}
+		else
+		{
+			Msg("~ WARNING: attempt to unregister not registered object, tried = %s (%d)", *(O->cName()), O->ID());
+		}
+	}
+
 	/*
 	 xr_map<u32,CObject*>::iterator it = map_NETID.find(O->ID());
 	 if ((it!=map_NETID.end()) && (it->second == O)) {
-	 // Msg ("-------------------------------- Unregster: %s",O->cName());
+	 // Msg ("-------------------------------- Unregister: %s",*(O->cName()));
 	 map_NETID.erase(it);
 	 }
 	 */

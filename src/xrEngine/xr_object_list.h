@@ -10,7 +10,9 @@ class ENGINE_API CObjectList
 private:
 	// data
 	//. xr_map<u32,CObject*> map_NETID;
-	CObject* map_NETID[0xffff];
+	//CObject* map_NETID[0xffff];
+	typedef xr_hash_map<u32, CObject*> ObjectsMap;
+	ObjectsMap map_NETID;
 
 private:
 	typedef xr_vector<CObject*> Objects;
@@ -69,10 +71,12 @@ public:
 
 	ICF CObject* net_Find(u16 ID) const
 	{
-		if (ID == u16(-1))
+		if (ID >= decltype(ID)(-1)) //if (ID == u16(-1))
 			return (0);
 
-		return (map_NETID[ID]);
+		//return (map_NETID[ID]);
+		ObjectsMap::const_iterator It = map_NETID.find(ID);
+		return (It != map_NETID.end() ? It->second : NULL);
 	}
 
 	void o_crow(CObject* O);
